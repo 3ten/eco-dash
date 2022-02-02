@@ -49,7 +49,7 @@
 
         <b-table responsive :fields="fields" :items="data" @row-clicked="openModal" class="text-left">
           <template v-slot:cell(user)="{item}">
-            {{ item.user.name }}
+            {{item.user? item.user.name:'' }}
           </template>
 
           <template v-slot:cell(date_start)="{item}">
