@@ -1,5 +1,32 @@
 <template>
   <div id="app">
+
+    <b-modal
+        id="modal-prevent-closing"
+        ref="modal"
+        title="Введите пароль"
+        ok-title="Ок"
+        cancel-title="Отмена"
+        @show="resetModal"
+        @hidden="resetModal"
+        @ok="handleOk"
+    >
+      <form ref="form" @submit.stop.prevent="handleSubmit">
+        <b-form-group
+            label="Пароль"
+            label-for="name-input"
+            invalid-feedback="Пароль неверный"
+            :state="nameState"
+        >
+          <b-form-input
+              id="name-input"
+              v-model="name"
+              :state="nameState"
+              required
+          ></b-form-input>
+        </b-form-group>
+      </form>
+    </b-modal>
     <b-modal v-model="modal" hide-footer>
       <div>Email: {{ current.user ? current.user.name : '' }}</div>
       <div>ФИО: {{ current.user ? current.user.email : '' }}</div>
@@ -49,11 +76,15 @@
 
         <b-table responsive :fields="fields" :items="data" @row-clicked="openModal" class="text-left">
           <template v-slot:cell(user)="{item}">
-            {{item.user? item.user.name:'' }}
+            {{ item.user ? item.user.name : '' }}
           </template>
 
           <template v-slot:cell(date_start)="{item}">
             {{ yyyymmdd(item.date_start) }}
+
+          </template>
+          <template v-slot:cell(remove)="{item}">
+            <b-button variant="danger" size="sm" @click="removeEvent(item._id)">X</b-button>
 
           </template>
         </b-table>
@@ -141,6 +172,7 @@ export default {
   components: {},
   data() {
     return {
+      removedId: null,
       data: [],
       modal: false,
       message: '',
@@ -163,8 +195,12 @@ export default {
         {key: 'address', label: 'Адрес'},
         {key: 'status', label: 'Статус'},
         {key: 'date_start', label: 'Дата'},
+        {key: 'remove', label: ''},
       ],
+      name: '',
+      nameState: null,
     }
+
   },
   async mounted() {
     let {data} = await this.$axios.get('http://188.225.18.212/event/-/admin');
@@ -175,6 +211,41 @@ export default {
     this.getChecklist();
   },
   methods: {
+    checkFormValidity() {
+      const valid = this.$refs.form.checkValidity() && this.name === 'ecoventpass'
+      this.nameState = valid
+      return valid
+    },
+    resetModal() {
+      this.name = ''
+      this.nameState = null
+      // this.removedId = null;
+    },
+    handleOk(bvModalEvt) {
+      // Prevent modal from closing
+      bvModalEvt.preventDefault()
+      // Trigger submit handler
+      this.handleSubmit()
+    },
+    handleSubmit() {
+      // Exit when the form isn't valid
+      if (!this.checkFormValidity()) {
+        return
+      }
+      // Push the name to submitted names
+      // this.submittedNames.push(this.name)
+      // Hide the modal manually
+      console.log(this.removedId);
+      this.$axios.delete('http://188.225.18.212/event/' + this.removedId).then(({data}) => {
+        this.removedId = null;
+        console.log(data);
+      })
+
+      this.$nextTick(async () => {
+
+        this.$bvModal.hide('modal-prevent-closing')
+      })
+    },
     openModal(row) {
       this.modal = true;
       this.current = row;
@@ -185,7 +256,7 @@ export default {
       let {data} = await this.$axios.put('http://188.225.18.212/event/' + this.current._id + '/admin', {
         ...this.current,
         status: 'accepted',
-        message:this.message
+        message: this.message
       });
       console.log(data)
     },
@@ -194,7 +265,7 @@ export default {
       let {data} = await this.$axios.put('http://188.225.18.212/event/' + this.current._id + '/admin', {
         ...this.current,
         status: 'rejected',
-        message:this.message
+        message: this.message
       });
       console.log(data)
     },
@@ -203,7 +274,7 @@ export default {
       let {data} = await this.$axios.put('http://188.225.18.212/event/' + this.current._id + '/admin', {
         ...this.current,
         status: 'draft',
-        message:this.message
+        message: this.message
       });
       console.log(data)
     },
@@ -243,6 +314,13 @@ export default {
     removeCheckList(i, j) {
       this.checklist[i].boxes.splice(j, 1);
 
+    },
+    async removeEvent(id) {
+      this.removedId = id;
+      this.$bvModal.show('modal-prevent-closing')
+
+
+      console.log(id);
     },
     async handleFileUpload() {
       this.loading = true;
